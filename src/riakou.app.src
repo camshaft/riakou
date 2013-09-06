@@ -1,0 +1,11 @@
+{application, riakou, [
+  {id, "riakou"},
+  {description, "gotta catch all the riaks"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib
+  ]},
+  {env, []}
+]}.
