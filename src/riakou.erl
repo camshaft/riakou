@@ -71,12 +71,20 @@ return(Group, Pid) ->
 do(Fun) ->
   do(?MODULE, Fun).
 
-do(Group, Fun) ->
-  Pid = take(Group),
-  try Fun(Pid)
-  catch
-    _:E -> E
-  after
-    return(Group, Pid)
-  end.
+do(Group, Fun) when is_function(Fun) ->
+  case take(Group) of
+    error_no_members ->
+      {error, no_connections};
+    Pid ->
+      try Fun(Pid)
+      catch
+        _:E -> E
+      after
+        return(Group, Pid)
+      end
+  end;
+do(Fun, Opts) ->
+  do(fun(P) ->
+    apply(riakc_pb_socket, Fun, [P|Opts])
+  end).
 
