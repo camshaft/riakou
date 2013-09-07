@@ -37,7 +37,7 @@ start_link(Host, Port) ->
   start_link(Host, Port, []).
 
 start_link(Host, Port, Opts) ->
-  start_link(Host, Port, Opts, 5, 10).
+  start_link(Host, Port, Opts, 5, 50).
 
 start_link(URL, Opts, Min, Max) ->
   {Host, Port} = parse_url(URL),

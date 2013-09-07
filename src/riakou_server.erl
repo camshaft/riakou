@@ -24,8 +24,8 @@
   port,
   host,
   group,
-  max = 10,
-  min = 5,
+  max,
+  min,
   ip_list = [],
   riak_opts = []
 }).
