@@ -6,6 +6,7 @@
 
 -export([start_link/0]).
 -export([add/6]).
+-export([set_poll/1]).
 
 %% gen_server
 
@@ -13,9 +14,12 @@
          terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
--define(POLL_RATE, 3600).
+-define(POLL_RATE, 300000). %% 5 minutes
 
--record(state, {}).
+-record(state, {
+  poll_rate = ?POLL_RATE
+}).
+
 -record(pool_state, {
   port,
   host,
@@ -34,12 +38,15 @@ start_link() ->
 add(Group, Host, Port, RiakOpts, Min, Max) ->
   gen_server:call(?SERVER, {register, Group, Host, Port, RiakOpts, Min, Max}).
 
+set_poll(Rate) ->
+  gen_server:call(?SERVER, {set_poll, Rate}).
+
 %% gen_server
 
 init([]) ->
   {ok, #state{}}.
 
-handle_call({register, Group, Host, Port, RiakOpts, Min, Max}, _From, State) ->
+handle_call({register, Group, Host, Port, RiakOpts, Min, Max}, _From, #state{poll_rate = Rate} = State) ->
   PoolState = #pool_state{
     host = Host,
     group = Group,
@@ -49,7 +56,7 @@ handle_call({register, Group, Host, Port, RiakOpts, Min, Max}, _From, State) ->
     max = Max
   },
   {ok, NewPoolState} = update_pools(PoolState),
-  poll(NewPoolState),
+  poll(NewPoolState, Rate),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, {error, not_handled}, State}.
@@ -57,9 +64,9 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-handle_info({refresh_pools, PoolState}, State) ->
+handle_info({refresh_pools, PoolState}, #state{poll_rate = Rate} = State) ->
   {ok, NewPoolState} = update_pools(PoolState),
-  poll(NewPoolState),
+  poll(NewPoolState, Rate),
   {noreply, State};
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -72,8 +79,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% Internal functions
 
-poll(PoolState) ->
-  timer:send_after(?POLL_RATE, {refresh_pools, PoolState}).
+poll(PoolState, Rate) ->
+  timer:send_after(Rate, {refresh_pools, PoolState}).
 
 update_pools(#pool_state{host = Host} = PoolState) ->
   diff_ips(lookup(Host), PoolState).
@@ -112,7 +119,7 @@ add_pool(IP, PoolState = #pool_state{group = Group, min = Min, max = Max, port =
     {init_count, Min},
     {start_mfa, {riakc_pb_socket, start_link, [IP, Port, RiakOpts]}}
   ],
-  pooler:new_pool(PoolOpts).
+  {ok, _} = pooler:new_pool(PoolOpts).
 
 lookup(Host) ->
   inet:getaddrs(Host, inet).
@@ -121,5 +128,5 @@ pool_name({IP1, IP2, IP3, IP4}, #pool_state{port = Port, group = Group} = _PoolS
   IP = string:join([
     integer_to_list(Int)
   || Int <- [IP1, IP2, IP3, IP4]], "."),
-  list_to_atom(atom_to_list(Group) ++ "://" ++ IP ++ ":" ++ integer_to_list(Port)).
+  list_to_atom(atom_to_list(Group) ++ "::" ++ IP ++ ":" ++ integer_to_list(Port)).
 
