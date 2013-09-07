@@ -5,7 +5,9 @@
   {registered, []},
   {applications, [
     kernel,
-    stdlib
+    stdlib,
+    pooler
   ]},
+  {mod, { riakou_app, []}},
   {env, []}
 ]}.

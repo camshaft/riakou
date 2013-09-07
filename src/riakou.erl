@@ -1,7 +1,7 @@
 -module(riakou).
 
 %% api
-
+-export([start/0]).
 -export([start_link/1]).
 -export([start_link/2]).
 -export([start_link/3]).
@@ -18,58 +18,46 @@
 
 %% api
 
-start_link(Host)->
+start() ->
+  application:start(pooler),
+  application:start(riakou).
+
+start_link(Host) ->
   start_link(Host, 8087).
 
-start_link(Host, Port)->
+start_link(Host, Port) ->
   start_link(Host, Port, []).
 
-start_link(Host, Port, Opts)->
+start_link(Host, Port, Opts) ->
   start_link(Host, Port, Opts, 5, 10).
 
-start_link(Host, Port, Opts, Min, Max)->
+start_link(Host, Port, Opts, Min, Max) ->
   start_link(?MODULE, Host, Port, Opts, Min, Max).
 
-start_link(Group, Host, Port, Opts, Min, Max)->
-  %% Get a list of all of the riak nodes
-  {ok, IPList} = inet:getaddrs(Host, inet),
+start_link(Group, Host, Port, Opts, Min, Max) ->
+  riakou_server:add(Group, Host, Port, Opts, Min, Max).
 
-  _Pools = [begin
-    PoolOpts = [
-      {name, pool_name(Group, IP, Port)},
-      {group, Group},
-      {max_count, Max},
-      {init_count, Min},
-      {start_mfa, {riakc_pb_socket, start_link, [IP, Port, Opts]}}
-    ],
-    pooler:new_pool(PoolOpts)
-  end || IP <- IPList],
-
-  %% TODO spawn a process to poll the dns entry and update the pools from the ip list
-
-  ok.
-
-take()->
+take() ->
   take(?MODULE).
 
-take(Group)->
+take(Group) ->
   pooler:take_group_member(Group).
 
-return(Pid)->
+return(Pid) ->
   return(?MODULE, Pid).
 
-return(Group, Pid)->
+return(Group, Pid) ->
   pooler:return_group_member(Group, Pid).
 
-do(Fun)->
+do(Fun) ->
   do(?MODULE, Fun).
 
-do(Pool, Fun)->
-  poolboy:transaction(Pool, Fun).
+do(Group, Fun) ->
+  Pid = take(Group),
+  try Fun(Pid)
+  catch
+    _:E -> E
+  after
+    return(Group, Pid)
+  end.
 
-pool_name(Group, {IP1, IP2, IP3, IP4}, Port)->
-  IP = string:join([
-    integer_to_list(Int)
-  || Int <- [IP1, IP2, IP3, IP4]], "."),
-  
-  list_to_atom(atom_to_list(Group) ++ "://" ++ IP ++ ":" ++ integer_to_list(Port)).
