@@ -14,9 +14,12 @@
 -export([return/2]).
 -export([do/1]).
 -export([do/2]).
+-export([do/3]).
 
 -define(SERVER, ?MODULE).
 -define(DEFAULT_PORT, 8087).
+-define(DEFAULT_MIN, 5).
+-define(DEFAULT_MAX, 50).
 
 %% api
 
@@ -33,17 +36,27 @@ start_link(Host) ->
 start_link(URL, Opts) when is_binary(URL) ->
   {Host, Port} = parse_url(URL),
   start_link(Host, Port, Opts);
-start_link(Host, Port) ->
+start_link(Group, URL) when is_atom(Group), is_binary(URL) ->
+  {Host, Port} = parse_url(URL),
+  start_link(Group, Host, Port);
+start_link(Host, Port) when is_integer(Port) ->
   start_link(Host, Port, []).
 
-start_link(Host, Port, Opts) ->
-  start_link(Host, Port, Opts, 5, 50).
-
-start_link(URL, Opts, Min, Max) ->
+start_link(Group, URL, Opts) when is_atom(Group), is_binary(URL) ->
   {Host, Port} = parse_url(URL),
-  start_link(Host, Port, Opts, Min, Max).
+  start_link(Group, Host, Port, Opts);
+start_link(Group, Host, Port) when is_atom(Group), is_integer(Port) ->
+  start_link(Group, Host, Port, []);
+start_link(Host, Port, Opts) when is_integer(Port) ->
+  start_link(Host, Port, Opts, ?DEFAULT_MIN, ?DEFAULT_MAX).
 
-start_link(Group, URL, Opts, Min, Max) when is_binary(URL) ->
+start_link(URL, Opts, Min, Max) when is_binary(URL) ->
+  {Host, Port} = parse_url(URL),
+  start_link(Host, Port, Opts, Min, Max);
+start_link(Group, Host, Port, Opts) when is_atom(Group) ->
+  start_link(Group, Host, Port, Opts, ?DEFAULT_MIN, ?DEFAULT_MAX).
+
+start_link(Group, URL, Opts, Min, Max) when is_atom(Group), is_binary(URL) ->
   {Host, Port} = parse_url(URL),
   start_link(Group, Host, Port, Opts, Min, Max);
 start_link(Host, Port, Opts, Min, Max) ->
@@ -75,6 +88,8 @@ do(Group, Fun) when is_function(Fun) ->
   case take(Group) of
     error_no_members ->
       {error, no_connections};
+    {error_no_group, _} = Err ->
+       Err;
     Pid ->
       try Fun(Pid)
       catch
@@ -84,7 +99,10 @@ do(Group, Fun) when is_function(Fun) ->
       end
   end;
 do(Fun, Opts) ->
-  do(fun(P) ->
+  do(?MODULE, Fun, Opts).
+
+do(Group, Fun, Opts) ->
+  do(Group, fun(P) ->
     apply(riakc_pb_socket, Fun, [P|Opts])
   end).
 
