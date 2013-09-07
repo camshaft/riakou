@@ -17,6 +17,7 @@
 -export([do/3]).
 
 -define(SERVER, ?MODULE).
+-define(DEFAULT_GROUP, ?MODULE).
 -define(DEFAULT_PORT, 8087).
 -define(DEFAULT_MIN, 5).
 -define(DEFAULT_MAX, 50).
@@ -60,7 +61,7 @@ start_link(Group, URL, Opts, Min, Max) when is_atom(Group), is_binary(URL) ->
   {Host, Port} = parse_url(URL),
   start_link(Group, Host, Port, Opts, Min, Max);
 start_link(Host, Port, Opts, Min, Max) ->
-  start_link(?MODULE, Host, Port, Opts, Min, Max).
+  start_link(?DEFAULT_GROUP, Host, Port, Opts, Min, Max).
 
 start_link(Group, Host, Port, Opts, Min, Max) ->
   riakou_server:add(Group, Host, Port, Opts, Min, Max).
@@ -70,19 +71,19 @@ parse_url(URI) ->
   {Host, Port}.
 
 take() ->
-  take(?MODULE).
+  take(?DEFAULT_GROUP).
 
 take(Group) ->
   pooler:take_group_member(Group).
 
 return(Pid) ->
-  return(?MODULE, Pid).
+  return(?DEFAULT_GROUP, Pid).
 
 return(Group, Pid) ->
   pooler:return_group_member(Group, Pid).
 
 do(Fun) ->
-  do(?MODULE, Fun).
+  do(?DEFAULT_GROUP, Fun).
 
 do(Group, Fun) when is_function(Fun) ->
   case take(Group) of
@@ -99,7 +100,7 @@ do(Group, Fun) when is_function(Fun) ->
       end
   end;
 do(Fun, Opts) ->
-  do(?MODULE, Fun, Opts).
+  do(?DEFAULT_GROUP, Fun, Opts).
 
 do(Group, Fun, Opts) ->
   do(Group, fun(P) ->
