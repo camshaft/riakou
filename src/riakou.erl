@@ -20,7 +20,7 @@
 -define(DEFAULT_GROUP, ?MODULE).
 -define(DEFAULT_PORT, 8087).
 -define(DEFAULT_MIN, 5).
--define(DEFAULT_MAX, 50).
+-define(DEFAULT_MAX, 100).
 
 %% api
 
