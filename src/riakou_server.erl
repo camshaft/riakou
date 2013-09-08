@@ -46,7 +46,7 @@ set_poll(Rate) ->
 init([]) ->
   {ok, #state{}}.
 
-handle_call({register, Group, Host, Port, RiakOpts, Min, Max}, _From, #state{poll_rate = Rate} = State) ->
+handle_call({register, Group, Host, Port, RiakOpts, Min, Max}, _From, State) ->
   PoolState = #pool_state{
     host = Host,
     group = Group,
@@ -55,8 +55,7 @@ handle_call({register, Group, Host, Port, RiakOpts, Min, Max}, _From, #state{pol
     min = Min,
     max = Max
   },
-  {ok, NewPoolState} = update_pools(PoolState),
-  poll(NewPoolState, Rate),
+  poll(PoolState, 0),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, {error, not_handled}, State}.
