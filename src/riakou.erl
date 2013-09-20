@@ -8,6 +8,8 @@
 -export([start_link/4]).
 -export([start_link/5]).
 -export([start_link/6]).
+-export([wait_for_connection/0]).
+-export([wait_for_connection/1]).
 -export([take/0]).
 -export([take/1]).
 -export([return/1]).
@@ -65,6 +67,19 @@ start_link(Host, Port, Opts, Min, Max) ->
 
 start_link(Group, Host, Port, Opts, Min, Max) ->
   riakou_server:add(Group, Host, Port, Opts, Min, Max).
+
+wait_for_connection() ->
+  wait_for_connection(?DEFAULT_GROUP).
+
+wait_for_connection(Group) ->
+  case ?MODULE:take(Group) of
+    Pid when is_pid(Pid) ->
+      ?MODULE:return(Group, Pid),
+      ok;
+    _ ->
+      timer:sleep(5),
+      ?MODULE:wait_for_connection()
+  end.
 
 parse_url(URI) ->
   {ok, {_Scheme, _UserInfo, Host, Port, _Path, _Query}} = http_uri:parse(binary_to_list(URI), [{scheme_defaults, [{riak, ?DEFAULT_PORT}]}]),
