@@ -1,7 +1,5 @@
 REBAR = rebar
 
-default: compile
-
 all: deps compile
 
 compile:
